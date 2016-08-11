@@ -19,28 +19,63 @@ PATH.IN = '../data/'
 PATH.OUT = '../res/'
 FR.IN='Draft Results Tech Com.xlsx'
 #stop()
-
+#push
 ###########import load data from excel or RDATA#######################################
 ###########excel is a little show, it can save to RData at first######################
 ######################################################################################
-convert.excel.to.rdata=T
-sheet.num=13
-load.file=paste(PATH.OUT,'load.data.at.sheet.num__',shape.num,'.RData',sep='')
-if(convert.excel.to.rdata){
+
+read.data.from.a.excel.with.13sheet.to.rdata=F;
+
+##read the data from a big excel,choose which sheet to read and give the building type name 
+read.data.from.a.excel.with.one.sheet.and.one.building.type=F;
+
+###
+load.rdata=F
+
+if(read.data.from.a.excel.with.13sheet.to.rdata){
+  sheet.num=13;tmp.type.name='total' 
+  print('read the data from excel uncluding all building type')
+  FR.IN = 'Draft Results Tech Com.xlsx'
   tmp.dat = read.xls(file.path (PATH.IN, FR.IN),sheet=sheet.num,header=TRUE) ##,stringsAsFactors=FALSE) ##colClasses=c(rep('character',3),rep('numeric',47)))
-
-  save(tmp.dat,file=load.file)
-}else{
- load(load.file)
+  save(tmp.dat,file='../res/tmp.data.RData')
+  
+  
+}else if(read.data.from.a.excel.with.one.sheet.and.one.building.type){
+  sheet.num=1; 
+  tmp.type.names=c('college','food_store','health','large_office','lodging','miscellaneous','refrigerated_warehouse','restaurant',
+                   'retail','school','small_office','unrefrigerated_warehouse','total')
+  tmp.type.name=tmp.type.names[1]
+  print('read the data from excel uncluding only one building type')
+  FR.IN=paste(tmp.type.name,'.xlsx',sep='')
+  tmp.dat = read.xls(file.path (PATH.IN, FR.IN),sheet=sheet.num,header=TRUE) ##,stringsAsFactors=FALSE) ##colClasses=c(rep('character',3),rep('numeric',47)))
+  save(tmp.dat,file='../res/tmp.data.RData')
+  
+  }else if(load.rdata){
+  load.file='../res/tmp.dat.RData'
+  load(load.file)
+  print('read the data from rdata file')
 }
-###load('../res/tmp.dat.RData')
 
+## here, I used a loop for handling different sectors.
+## it can comment out and then read with one excel 'Draft Results Tech Com.xlsx'
+## these excels generated from 'Draft Results Tech Com.xlsx'
+
+tmp.type.names=c('college','food_store','health','large_office','lodging','miscellaneous','refrigerated_warehouse','restaurant',
+                 'retail','school','small_office','unrefrigerated_warehouse','total')
+
+for (tmp.type.name in tmp.type.names){
+  sheet.num=1; 
+  print('read the data from excel uncluding only one building type')
+  print(tmp.type.name)
+  FR.IN=paste(tmp.type.name,'.xlsx',sep='')
+  tmp.dat = read.xls(file.path (PATH.IN, FR.IN),sheet=sheet.num,header=TRUE)
+  
 ##################get the year, hour and annual value based on building type or end use sectors#############################################
 tmp.year=as.character(unlist(tmp.dat[50,6:50]))
 tmp.hour=as.numeric(unlist(tmp.dat[51:8810,5]))
 tmp.building.type.name=as.character(unlist(tmp.dat[25:37,3]))
 tmp.sector.name=as.character(unlist(tmp.dat[39:49,3]))
-tmp.type.name='total'
+
 
 tmp.sector.annual.mag=tmp.dat[39:49,6:50]
 tmp.sector.annual.mag.vec=as.numeric(as.character(gsub(',','',unlist(tmp.sector.annual.mag))))
@@ -62,43 +97,111 @@ for (ii in 1:45){
 }
 
 plt.f =  paste (PATH.OUT,'Comparing.load.shape.at.different.years.for.commercial.building.type__', tmp.type.name, "__", ".2006-2046_XG_", proc.date, ".pdf",sep="")
-pdf(plt.f,width=16,height=8)
+pdf(plt.f,width=16,height=12)
+par(mfrow=c(2,1))
 
-xlims = as.POSIXct(c(strptime("2009-01-01-00",format="%Y-%m-%d-%H"),strptime("2009-12-31-23",format="%Y-%m-%d-%H")))
+xlims = as.POSIXct(c(strptime("2006-01-01-00",format="%Y-%m-%d-%H"),strptime("2006-12-31-23",format="%Y-%m-%d-%H")))
 all.dates =seq(min(xlims),max(xlims),by="1 hour")
 loctime.Z = as.numeric (format(all.dates, format="%Y%m%d%H"))
+month= as.numeric (format(all.dates, format="%m"))
 plt.time = strptime (loctime.Z, "%Y%m%d%H")
 
-########################load magnitude######################################################################
-plot (plt.time, tmp.type.hour.mag.mat[,1], xaxt='n', type='p', col='black', ylab='Load Magnitude(MW)',
-      xlab='Time', main=tmp.type.name, ylim = c(5, 22),pch=16,cex=0.5)
-points(plt.time,tmp.type.hour.mag.mat[,11],col='red',cex=0.6)
-points(plt.time,tmp.type.hour.mag.mat[,21],col='blue',cex=0.7)
-points(plt.time,tmp.type.hour.mag.mat[,31],col='cyan',cex=0.8)
-points(plt.time,tmp.type.hour.mag.mat[,41],col='brown',cex=0.9)
 
-r <- as.POSIXct(range(plt.time),"days")
-axis.POSIXct(1, at=seq(r[1], r[2], by="months"), format="%b-%d")
+
+########################load magnitude######################################################################
+for (jj in 1:12){
+month.id=which(month==jj)
+Y.LIM=max(tmp.type.hour.mag.mat)*1.1
+
+plot (plt.time[month.id], tmp.type.hour.mag.mat[,1][month.id], xaxt='n', type='l', col='black', ylab='Load Magnitude(MW)',
+      xlab='Time', main=paste('load___buidling type: ', tmp.type.name,';',"month: ",jj,sep=''), ylim = c(0, Y.LIM),pch=16,cex=0.5,lwd=2)
+points(plt.time[month.id],tmp.type.hour.mag.mat[,11][month.id],col='red',cex=0.6,type='l',lwd=2)
+points(plt.time[month.id],tmp.type.hour.mag.mat[,21][month.id],col='blue',cex=0.7,type='l',lwd=2)
+points(plt.time[month.id],tmp.type.hour.mag.mat[,31][month.id],col='cyan',cex=0.8,type='l',lwd=2)
+points(plt.time[month.id],tmp.type.hour.mag.mat[,41][month.id],col='brown',cex=0.9,type='l',lwd=2)
+
+r <- as.POSIXct(range(plt.time[month.id]),"days")
+axis.POSIXct(1, at=seq(r[1], r[2], by="days"), format="%b-%d")
 legend ('topright', legend=c(tmp.year[1],tmp.year[11],tmp.year[21],tmp.year[31],tmp.year[41]),         
-        col=c('black','red','blue','cyan','brown'), pch=16, cex=0.5)
+        col=c('black','red','blue','cyan','brown'), pch=16, cex=1.2)
 ########################load magnitude######################################################################
 ########################load shape###########################################################################
-plot (plt.time, tmp.hour.shape[,1], xaxt='n', type='p', col='black', ylab='Load shape (1/hour)',
-      xlab='Time', main=tmp.type.name, ylim = c(0.00005, 0.00025),pch=16,cex=0.5)
-points(plt.time,tmp.hour.shape[,11],col='red',cex=0.6)
-points(plt.time,tmp.hour.shape[,21],col='blue',cex=0.7)
-points(plt.time,tmp.hour.shape[,31],col='cyan',cex=0.8)
-points(plt.time,tmp.hour.shape[,41],col='brown',cex=0.9)
+plot (plt.time[month.id], tmp.hour.shape[,1][month.id], xaxt='n', type='l', col='black', ylab='Load shape (1/hour)',
+      xlab='Time', main=paste('load shape___buidling type: ', tmp.type.name,';',"month: ",jj,sep=''), ylim = c(0.00005, 0.00025),pch=16,cex=0.5,lwd=2)
+points(plt.time[month.id],tmp.hour.shape[,11][month.id],col='red',cex=0.6,type='l',lwd=2)
+points(plt.time[month.id],tmp.hour.shape[,21][month.id],col='blue',cex=0.7,type='l',lwd=2)
+points(plt.time[month.id],tmp.hour.shape[,31][month.id],col='cyan',cex=0.8,type='l',lwd=2)
+points(plt.time[month.id],tmp.hour.shape[,41][month.id],col='brown',cex=0.9,type='l',lwd=2)
 
-r <- as.POSIXct(range(plt.time),"days")
-axis.POSIXct(1, at=seq(r[1], r[2], by="months"), format="%b-%d")
+r <- as.POSIXct(range(plt.time[month.id]),"days")
+axis.POSIXct(1, at=seq(r[1], r[2], by="days"), format="%b-%d")
 legend ('topright', legend=c(tmp.year[1],tmp.year[11],tmp.year[21],tmp.year[31],tmp.year[41]),         
-        col=c('black','red','blue','cyan','brown'), pch=c(16), cex=1)
+        col=c('black','red','blue','cyan','brown'), pch=c(16), cex=1.2)
+}
 #######################load shape###########################################################################
 dev.off()
 
-#################################################################################################################################################
-###################compute the load shape of each end use sector based on CA total###############################################################
+  ##########################3
+  ##########################3
+  ##########################3
+  tmp.hour.shape.avg=apply(tmp.hour.shape[,1:45],1,mean)
+  tmp.hour.shape.diff=matrix(NA,dim(tmp.type.hour.mag)[1],dim(tmp.type.hour.mag)[2])
+  tmp.hour.shape.diff.ratio=matrix(NA,dim(tmp.type.hour.mag)[1],dim(tmp.type.hour.mag)[2])
+  for (ii in 1:45){
+    tmp.hour.shape.diff[,ii]=tmp.hour.shape[,ii]-tmp.hour.shape.avg
+    tmp.hour.shape.diff.ratio[,ii]=tmp.hour.shape.diff[,ii]/tmp.hour.shape.avg
+  }
+  
+  plt.f =  paste (PATH.OUT,'load.shape.diff.with.avg.load.shape.at2006-2050.and.the.ratio.to.avg.load.shape.different.years.for.commercial.building.type__', tmp.type.name, "__", ".2006-2046_XG_", proc.date, ".pdf",sep="")
+  pdf(plt.f,width=16,height=12)
+  par(mfrow=c(2,1))
+  
+  xlims = as.POSIXct(c(strptime("2006-01-01-00",format="%Y-%m-%d-%H"),strptime("2006-12-31-23",format="%Y-%m-%d-%H")))
+  all.dates =seq(min(xlims),max(xlims),by="1 hour")
+  loctime.Z = as.numeric (format(all.dates, format="%Y%m%d%H"))
+  month= as.numeric (format(all.dates, format="%m"))
+  plt.time = strptime (loctime.Z, "%Y%m%d%H")
+  
+  
+  
+  ########################load magnitude######################################################################
+  for (jj in 1:12){
+    month.id=which(month==jj)
+    Y.LIM.MAX=max(tmp.hour.shape.diff)*1.05
+    Y.LIM.MIN=min(tmp.hour.shape.diff)*1.05
+    plot (plt.time[month.id], tmp.hour.shape.diff[,1][month.id], xaxt='n', type='l', col='black', ylab='Load shape difference (1/hour)',
+          xlab='Time', main=paste('load shape difference.between.one.year.and.avg.data(2006-2050)___buidling type: ', tmp.type.name,';',"month: ",jj,sep=''), 
+          ylim = c(Y.LIM.MIN, Y.LIM.MAX),pch=16,cex=0.5,lwd=2)
+    points(plt.time[month.id],tmp.hour.shape.diff[,11][month.id],col='red',cex=0.6,type='l',lwd=2)
+    points(plt.time[month.id],tmp.hour.shape.diff[,21][month.id],col='blue',cex=0.7,type='l',lwd=2)
+    points(plt.time[month.id],tmp.hour.shape.diff[,31][month.id],col='cyan',cex=0.8,type='l',lwd=2)
+    points(plt.time[month.id],tmp.hour.shape.diff[,41][month.id],col='brown',cex=0.9,type='l',lwd=2)
+    
+    r <- as.POSIXct(range(plt.time[month.id]),"days")
+    axis.POSIXct(1, at=seq(r[1], r[2], by="days"), format="%b-%d")
+    legend ('topright', legend=c(tmp.year[1],tmp.year[11],tmp.year[21],tmp.year[31],tmp.year[41]),         
+            col=c('black','red','blue','cyan','brown'), pch=16, cex=1.2)
+    ########################load magnitude######################################################################
+    ########################load shape###########################################################################
+    Y.LIM.MAX=max(tmp.hour.shape.diff.ratio)*1.05
+    Y.LIM.MIN=min(tmp.hour.shape.diff.ratio)*1.05
+    plot (plt.time[month.id], tmp.hour.shape.diff.ratio[,1][month.id], xaxt='n', type='l', col='black', ylab='Load difference ratio',
+          xlab='Time', main=paste('load shape difference.ratio.between.one.year.and.avg.data(2006-2050)___buidling type: ', tmp.type.name,';',"month: ",jj,sep=''), 
+          ylim = c(Y.LIM.MIN, Y.LIM.MAX),pch=16,cex=0.5,lwd=2)
+    points(plt.time[month.id],tmp.hour.shape.diff.ratio[,11][month.id],col='red',cex=0.6,type='l',lwd=2)
+    points(plt.time[month.id],tmp.hour.shape.diff.ratio[,21][month.id],col='blue',cex=0.7,type='l',lwd=2)
+    points(plt.time[month.id],tmp.hour.shape.diff.ratio[,31][month.id],col='cyan',cex=0.8,type='l',lwd=2)
+    points(plt.time[month.id],tmp.hour.shape.diff.ratio[,41][month.id],col='brown',cex=0.9,type='l',lwd=2)
+    
+    r <- as.POSIXct(range(plt.time[month.id]),"days")
+    axis.POSIXct(1, at=seq(r[1], r[2], by="days"), format="%b-%d")
+    legend ('topright', legend=c(tmp.year[1],tmp.year[11],tmp.year[21],tmp.year[31],tmp.year[41]),         
+            col=c('black','red','blue','cyan','brown'), pch=c(16), cex=1.2)
+  }
+  #######################load shape###########################################################################
+  dev.off()
+}
+stop()
 
 
 
